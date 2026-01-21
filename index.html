@@ -5,9 +5,8 @@
     <title>今日の天気</title>
 </head>
 <body>
-    <select id="area"></select><br/>
-    <img id="weather-svg"></img>
-    <div id="weather-text"></div>
+    <select id="area"></select> の天気<br/>
+    <table id="weather-table"></table>
 
 <script>
 class AreaCodes {
@@ -72,11 +71,17 @@ async function get_weather_data( areacode ) {
 
     const weather_data = await response.json() ;
 
-    let retdict = {} ;
-    return [ weather_data[0].timeSeries[0].areas[0].weathers[0] ,
-             weather_data[0].timeSeries[0].areas[0].weatherCodes[0] ];
+    let retarray = [] ;
 
-    return retdict
+    for( d in weather_data[0].timeSeries[0].areas ) {
+        // console.log(  weather_data[0].timeSeries[0].areas[d] );
+
+        retarray.push( { "name" :       weather_data[0].timeSeries[0].areas[d].area.name , 
+                         "weather" :    weather_data[0].timeSeries[0].areas[d].weathers[0],
+                         "weatherCode" : weather_data[0].timeSeries[0].areas[d].weatherCodes[0] } );
+    }
+
+    return retarray;
 }
 
 
@@ -103,17 +108,49 @@ const wmap = { "100":"500", "101":"501", "102":"502", "103":"502", "104":"504",
                "422":"414", "423":"414", "425":"400", "426":"400", "427":"400",
                "450":"400" };
 
-async function update_weather( areacode , displayname ) {
+async function update_weather( areacode, titlename ) {
     const wrets = await get_weather_data( areacode );
-
-    document.getElementById("weather-text").innerHTML = "<p>" + displayname + " : " + wrets[0] +"</p>" ;
-
-    if( wmap[wrets[1]] ) {
-        //console.log( "mapped " + wrets[1] + " -> " + wmap[ wrets[1] ] );
-        document.getElementById("weather-svg").src = "https://www.jma.go.jp/bosai/forecast/img/" + wmap[ wrets[1] ] + ".svg" ;
-    } else {
-        document.getElementById("weather-svg").src = "https://www.jma.go.jp/bosai/forecast/img/" + wrets[1] + ".svg" ;
+    const tbl = document.getElementById("weather-table")
+ 
+   // clear table
+    while( tbl.firstChild ){
+        tbl.removeChild( tbl.firstChild );
     }
+
+   // make table
+    for( i in wrets ) {
+        var tr = document.createElement( "tr" )
+        var td, img;
+        var icode ;
+
+        if( wmap[ wrets[i].weatherCode ] ) { 
+            //console.log( "mapped " + wrets[i].weatherCode + " -> " + wmap[ wrets[i].weatherCode ] );
+            icode = wmap[ wrets[i].weatherCode ] ;
+        }else{
+            icode = wrets[i].weatherCode ;
+        }
+        img =  document.createElement("img") ;
+        img.src = "https://www.jma.go.jp/bosai/forecast/img/" + icode + ".svg" ;
+
+        td = document.createElement( "td" ) ;
+        td.align = "center";
+        td.innerText = wrets[i].name ;
+        tr.appendChild( td );
+
+        td = document.createElement( "td" ) ;
+        td.appendChild( img );
+        tr.appendChild( td );
+
+        td = document.createElement( "td" ) ;
+        td.innerText = wrets[i].weather ;
+        tr.appendChild( td );
+
+        tbl.appendChild( tr );
+    }
+
+   // update title
+    document.getElementsByTagName("TITLE")[0].innerText =  "今日の" + titlename + "の天気"
+
     return ;
 }
 
@@ -137,7 +174,8 @@ function create_area_list( area_list, default_code ) {
         const name = document.getElementById("area").options[ document.getElementById("area").selectedIndex ].label ;
         //console.log( name );
         //console.log( area );
-        update_weather( area, name );
+
+        update_weather( area , name );
         return ;
     }
 
@@ -154,10 +192,9 @@ window.onload = async function() {
     // console.log( aret );
 
     const wlist = await areacodes.get_arealist();
+    //console.log( wlist );
     create_area_list( wlist, areacode );  
 
-
-    //console.log( wlist );
     await update_weather( areacode, displayname );
 }
 
